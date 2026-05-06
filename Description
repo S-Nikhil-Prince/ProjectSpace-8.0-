@@ -1,0 +1,25 @@
+
+Adaptive Hybrid AXI–APB Memory Interface for Efficient CPU–SRAM Communication
+
+Problem Statement: 
+Many modern SoC systems rely on high-speed communication protocols for all memory transactions, even when 
+the workload is minimal. This leads to inefficient use of hardware resources and increased dynamic power 
+consumption. An optimized memory interface is required that can adapt between high-performance communication
+ and low-power communication depending on the workload.
+
+This project focuses on the design and functional verification of a hybrid memory interface between CPU and RAM 
+using AXI and APB protocols. The CPU behaviour is modelled using System Verilog classes, where address and data
+are randomized through constrained randomization to emulate real-time traffic patterns. A Traffic Analyzer is 
+built which monitors the transactions and classifies them into Sequential Burst and Random Burst.
+
+Based on this analysis, AXI protocol is selected for high-speed burst transfers, while APB is used for low-power
+and control-oriented operations. The SRAM is implemented as a DUT module.
+Randomized transactions are driven through the selected protocol to perform write and read operations, 
+and the results are verified using a scoreboard by comparing the expected and actual data based on the memory address.
+The verification environment validates both protocol functionality, protocol switching, and SRAM correctness. 
+The proposed hybrid approach aims to improve power and performance trade-offs compared to single-protocol interfaces,
+ making it suitable for low-power and high-performance SoC designs.
+
+Result of our Project :
+•	A comparative analysis was  performed between the AXI Interface and the AXI-APB Hybrid Interface,
+and their power consumption reports were evaluated to demonstrate the efficiency and significance of the proposed design.
