@@ -216,49 +216,7 @@ end
 endmodule
 
 
-// ============================================================
-// ADDRESS DECODER
-// ============================================================
 
-module address_decoder(
-
-    input logic [7:0] addr,
-
-    output logic sel_ram,
-    output logic sel_uart,
-    output logic sel_gpio,
-    output logic sel_timer,
-    output logic sel_i2c
-
-);
-
-always_comb
-begin
-
-    sel_ram   = 0;
-    sel_uart  = 0;
-    sel_gpio  = 0;
-    sel_timer = 0;
-    sel_i2c   = 0;
-
-    if(addr < 8'h40)
-        sel_ram = 1;
-
-    else if(addr < 8'h60)
-        sel_uart = 1;
-
-    else if(addr < 8'h80)
-        sel_gpio = 1;
-
-    else if(addr < 8'hA0)
-        sel_timer = 1;
-
-    else if(addr < 8'hC0)
-        sel_i2c = 1;
-
-end
-
-endmodule
 
 
 // ============================================================
@@ -326,118 +284,7 @@ end
 endmodule
 
 
-// ============================================================
-// UART
-// ============================================================
 
-module uart_apb(
-
-    input logic clk,
-    input logic write,
-    input logic read,
-    input logic [7:0] addr,
-    input logic [31:0] wdata,
-    output logic [31:0] rdata
-
-);
-
-logic [31:0] uart_mem [0:31];
-
-always_ff @(posedge clk)
-begin
-    if(write)
-        uart_mem[addr[4:0]] <= wdata;
-end
-
-assign rdata = uart_mem[addr[4:0]];
-
-endmodule
-
-
-// ============================================================
-// GPIO
-// ============================================================
-
-module gpio_apb(
-
-    input logic clk,
-    input logic write,
-    input logic read,
-    input logic [7:0] addr,
-    input logic [31:0] wdata,
-    output logic [31:0] rdata
-
-);
-
-logic [31:0] gpio_mem [0:31];
-
-always_ff @(posedge clk)
-begin
-    if(write)
-        gpio_mem[addr[4:0]] <= wdata;
-end
-
-assign rdata = gpio_mem[addr[4:0]];
-
-endmodule
-
-
-// ============================================================
-// TIMER
-// ============================================================
-
-module timer_apb(
-
-    input logic clk,
-    input logic write,
-    input logic read,
-    input logic [7:0] addr,
-    input logic [31:0] wdata,
-    output logic [31:0] rdata
-
-);
-
-logic [31:0] timer_mem [0:31];
-
-always_ff @(posedge clk)
-begin
-    if(write)
-        timer_mem[addr[4:0]] <= wdata;
-    else
-        timer_mem[addr[4:0]] <= timer_mem[addr[4:0]] + 1;
-end
-
-assign rdata = timer_mem[addr[4:0]];
-
-endmodule
-
-
-// ============================================================
-// I2C
-// ============================================================
-
-module i2c_apb(
-
-    input logic clk,
-    input logic write,
-    input logic read,
-    input logic [7:0] addr,
-    input logic [31:0] wdata,
-    output logic [31:0] rdata
-
-);
-
-logic [31:0] i2c_mem [0:31];
-
-always_ff @(posedge clk)
-begin
-    if(write)
-        i2c_mem[addr[4:0]] <= wdata;
-end
-
-assign rdata = i2c_mem[addr[4:0]];
-
-endmodule
 
 
 // ============================================================
@@ -450,109 +297,33 @@ module top_memory_system(
 
 );
 
-logic sel_ram;
-logic sel_uart;
-logic sel_gpio;
-logic sel_timer;
-logic sel_i2c;
+    logic [31:0] ram_rdata;
 
-logic [31:0] ram_rdata;
-logic [31:0] uart_rdata;
-logic [31:0] gpio_rdata;
-logic [31:0] timer_rdata;
-logic [31:0] i2c_rdata;
-
-logic [31:0] fifo_data;
-logic fifo_full;
-logic fifo_empty;
+    logic [31:0] fifo_data;
+    logic fifo_full;
+    logic fifo_empty;
   
-  
-traffic_classifier tc(
+    traffic_classifier tc(
+        .clk(vif.clk),
+        .reset(vif.reset),
+        .write(vif.write),
+        .read(vif.read),
+        .addr(vif.addr),
+        .use_axi(vif.use_axi),
+        .use_apb(vif.use_apb),
+        .continuous_count(vif.continuous_count),
+        .sequential_access(vif.sequential_access),
+        .random_access(vif.random_access)
+    );
 
-    .clk(vif.clk),
-    .reset(vif.reset),
-
-    .write(vif.write),
-    .read(vif.read),
-
-    .addr(vif.addr),
-
-    .use_axi(vif.use_axi),
-    .use_apb(vif.use_apb),
-
-  .continuous_count(vif.continuous_count),
-  .sequential_access(vif.sequential_access),
-.random_access(vif.random_access)
-
-);
-  
-
-address_decoder dec(
-
-    .addr(vif.addr),
-
-    .sel_ram(sel_ram),
-    .sel_uart(sel_uart),
-    .sel_gpio(sel_gpio),
-    .sel_timer(sel_timer),
-    .sel_i2c(sel_i2c)
-
-);
-
-sram_model ram(
-
-    .clk(vif.clk),
-    .reset(vif.reset),
-    .we(vif.write && sel_ram),
-    .addr(vif.addr),
-    .wdata(vif.wdata),
-    .rdata(ram_rdata)
-
-);
-
-uart_apb uart(
-
-    .clk(vif.clk),
-    .write(vif.write & sel_uart),
-    .read(vif.read),
-    .addr(vif.addr),
-    .wdata(vif.wdata),
-    .rdata(uart_rdata)
-
-);
-
-gpio_apb gpio(
-
-    .clk(vif.clk),
-    .write(vif.write & sel_gpio),
-    .read(vif.read),
-    .wdata(vif.wdata),
-    .addr(vif.addr),
-    .rdata(gpio_rdata)
-
-);
-
-timer_apb timer(
-
-    .clk(vif.clk),
-    .write(vif.write & sel_timer),
-    .read(vif.read),
-    .wdata(vif.wdata),
-    .addr(vif.addr),
-    .rdata(timer_rdata)
-
-);
-
-i2c_apb i2c(
-
-    .clk(vif.clk),
-    .write(vif.write & sel_i2c),
-    .read(vif.read),
-    .wdata(vif.wdata),
-    .addr(vif.addr),
-    .rdata(i2c_rdata)
-
-);
+    sram_model ram(
+        .clk(vif.clk),
+        .reset(vif.reset),
+        .we(vif.write),
+        .addr(vif.addr),
+        .wdata(vif.wdata),
+        .rdata(ram_rdata)
+    );
 
 apb_fifo fifo(
 
@@ -573,22 +344,7 @@ apb_fifo fifo(
 always_comb
 begin
 
-    vif.rdata = 32'hDEADBEEF;
-
-    if(sel_ram)
-        vif.rdata = ram_rdata;
-
-    else if(sel_uart)
-        vif.rdata = uart_rdata;
-
-    else if(sel_gpio)
-        vif.rdata = gpio_rdata;
-
-    else if(sel_timer)
-        vif.rdata = timer_rdata;
-
-    else if(sel_i2c)
-        vif.rdata = i2c_rdata;
+    vif.rdata <= ram_rdata;
 
 end
 

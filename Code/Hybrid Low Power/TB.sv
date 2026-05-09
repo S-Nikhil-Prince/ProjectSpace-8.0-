@@ -40,6 +40,9 @@ class generator;
         integer seq_count;
         integer burst_no;
         integer beat;
+        
+        int stored_addrs[$];
+        int stored_data[$];
 
         i = 0;
         burst_no = 0;
@@ -81,18 +84,39 @@ class generator;
                 else
                 begin
 
-                    tr.addr = $urandom_range(0,191);
+                    tr.addr = $urandom_range(0,63);
                     tr.sequential = 0;
 
                 end
 
                 tr.write = 1;
                 tr.read  = 0;
+                
+                stored_addrs.push_back(tr.addr);
+                stored_data.push_back(tr.wdata);
 
                 gen2drv.put(tr);
 
             end
 
+            burst_no++;
+            
+            // NOW READ THEM BACK
+            for(beat = 0; beat < seq_count; beat++)
+            begin
+                tr = new();
+                tr.burst_id   = burst_no;
+                tr.beat_id    = beat;
+                tr.total_beats = seq_count;
+                tr.addr = stored_addrs.pop_front();
+                tr.wdata = 0;
+                tr.write = 0;
+                tr.read = 1;
+                if(mode) tr.sequential = 1; else tr.sequential = 0;
+
+                gen2drv.put(tr);
+            end
+            
             burst_no++;
 
         end
