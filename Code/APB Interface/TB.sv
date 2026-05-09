@@ -193,6 +193,7 @@ class monitor;
         begin
 
             @(posedge vif.clk);
+            #1; // Wait for combinational logic to settle to prevent simulation race conditions
 
             // ====================================
             // NEW BURST DETECTED

@@ -72,15 +72,25 @@ begin
     end
     else begin
 
-        if(write_en && !full)
+        if(write_en && !full && read_en && !empty)
+        begin
+            fifo_data[w_ptr] <= data_in;
+            fifo_addr[w_ptr] <= addr_in;
+            w_ptr <= w_ptr + 1;
+            
+            data_out <= fifo_data[r_ptr];
+            addr_out <= fifo_addr[r_ptr];
+            r_ptr <= r_ptr + 1;
+            // count remains unchanged
+        end
+        else if(write_en && !full)
         begin
             fifo_data[w_ptr] <= data_in;
             fifo_addr[w_ptr] <= addr_in;
             w_ptr <= w_ptr + 1;
             count <= count + 1;
         end
-
-        if(read_en && !empty)
+        else if(read_en && !empty)
         begin
             data_out <= fifo_data[r_ptr];
             addr_out <= fifo_addr[r_ptr];
@@ -214,6 +224,8 @@ begin
     vif.rdata = ram_rdata;
 end
 
+logic apb_busy;
+
 always_ff @(posedge vif.clk)
 begin
 
@@ -223,21 +235,31 @@ begin
         vif.penable <= 0;
         vif.pwrite  <= 0;
         vif.pready  <= 0;
+        apb_busy    <= 0;
     end
-    else if(vif.write || vif.read)
+    else if ((vif.write || vif.read) && !apb_busy)
     begin
-        vif.psel <= 1;
+        // Phase 1: Setup
+        vif.psel    <= 1;
         vif.penable <= 0;
-        vif.pwrite <= vif.write;
+        vif.pwrite  <= vif.write;
+        vif.pready  <= 0;
+        apb_busy    <= 1;
+    end
+    else if (apb_busy && !vif.penable)
+    begin
+        // Phase 2: Access
         vif.penable <= 1;
-        vif.pready <= 1;
+        vif.pready  <= 1;
     end
-    else
+    else if (apb_busy && vif.penable)
     begin
-        vif.psel <= 0;
+        // Completion
+        vif.psel    <= 0;
         vif.penable <= 0;
-        vif.pready <= 0;
-        vif.pwrite <= 0;
+        vif.pready  <= 0;
+        vif.pwrite  <= 0;
+        apb_busy    <= 0;
     end
 
 end
