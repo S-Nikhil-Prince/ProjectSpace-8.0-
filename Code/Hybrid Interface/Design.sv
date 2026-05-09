@@ -164,6 +164,7 @@ endmodule
 module apb_fifo(
 
     input logic clk,
+    input logic reset,
     input logic write_en,
     input logic read_en,
 
@@ -187,19 +188,27 @@ assign empty = (count == 0);
 
 always_ff @(posedge clk)
 begin
-
-    if(write_en && !full)
-    begin
-        fifo[w_ptr] <= data_in;
-        w_ptr <= w_ptr + 1;
-        count <= count + 1;
+    if (reset) begin
+        w_ptr    <= '0;
+        r_ptr    <= '0;
+        count    <= '0;
+        data_out <= '0;
     end
+    else begin
 
-    if(read_en && !empty)
-    begin
-        data_out <= fifo[r_ptr];
-        r_ptr <= r_ptr + 1;
-        count <= count - 1;
+        if(write_en && !full)
+        begin
+            fifo[w_ptr] <= data_in;
+            w_ptr <= w_ptr + 1;
+            count <= count + 1;
+        end
+
+        if(read_en && !empty)
+        begin
+            data_out <= fifo[r_ptr];
+            r_ptr <= r_ptr + 1;
+            count <= count - 1;
+        end
     end
 
 end
@@ -259,6 +268,7 @@ endmodule
 module sram_model(
 
     input logic clk,
+    input logic reset,
     input logic we,
     input logic [7:0] addr,
     input logic [31:0] wdata,
@@ -284,11 +294,13 @@ assign rdata = mem[addr];
 
 always_ff @(posedge clk)
 begin
-    cycle_count <= cycle_count + 1;
+    if (reset) cycle_count <= 0;
+    else       cycle_count <= cycle_count + 1;
 end
 
 always_ff @(posedge clk)
 begin
+`ifndef SYNTHESIS
 
     if(cycle_count % 20 == 0)
     begin
@@ -308,6 +320,7 @@ begin
 
     end
 
+`endif
 end
 
 endmodule
@@ -489,6 +502,7 @@ address_decoder dec(
 sram_model ram(
 
     .clk(vif.clk),
+    .reset(vif.reset),
     .we(vif.write && sel_ram),
     .addr(vif.addr),
     .wdata(vif.wdata),
@@ -543,6 +557,7 @@ i2c_apb i2c(
 apb_fifo fifo(
 
     .clk(vif.clk),
+    .reset(vif.reset),
 
     .write_en(vif.write & vif.use_axi),
     .read_en(vif.read & vif.use_apb),
@@ -580,7 +595,15 @@ end
 always_ff @(posedge vif.clk)
 begin
 
-    if(vif.use_axi && vif.write)
+    if (vif.reset)
+    begin
+        vif.awvalid <= 0;
+        vif.awready <= 0;
+        vif.wvalid  <= 0;
+        vif.wready  <= 0;
+        vif.bvalid  <= 0;
+    end
+    else if(vif.use_axi && vif.write)
     begin
 
         vif.awvalid <= 1;
@@ -599,6 +622,8 @@ begin
         vif.wvalid  <= 0;
 
         vif.bvalid  <= 0;
+        vif.awready <= 0;
+        vif.wready  <= 0;
 
     end
 
@@ -607,7 +632,13 @@ end
 always_ff @(posedge vif.clk)
 begin
 
-    if(vif.use_axi && vif.read)
+    if (vif.reset)
+    begin
+        vif.arvalid <= 0;
+        vif.arready <= 0;
+        vif.rvalid  <= 0;
+    end
+    else if(vif.use_axi && vif.read)
     begin
 
         vif.arvalid <= 1;
@@ -631,7 +662,14 @@ end
 always_ff @(posedge vif.clk)
 begin
 
-    if(vif.use_apb)
+    if (vif.reset)
+    begin
+        vif.psel    <= 0;
+        vif.penable <= 0;
+        vif.pwrite  <= 0;
+        vif.pready  <= 0;
+    end
+    else if(vif.use_apb)
     begin
 
         vif.psel <= 1;
@@ -650,6 +688,7 @@ begin
         vif.psel <= 0;
         vif.penable <= 0;
         vif.pready <= 0;
+        vif.pwrite <= 0;
 
     end
 

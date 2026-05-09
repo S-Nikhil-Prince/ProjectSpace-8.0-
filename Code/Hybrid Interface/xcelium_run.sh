@@ -1,0 +1,1 @@
+xrun -sv -access +rwc "Design.sv" "TB.sv" -top tb
