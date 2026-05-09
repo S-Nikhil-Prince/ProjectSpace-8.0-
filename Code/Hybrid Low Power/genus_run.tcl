@@ -1,8 +1,9 @@
 #load libraries
-set_db library {/home/install/FOUNDRY/digital/90nm/dig/lib/slow.lib \ /home/install/FOUNDRY/digital/90nm/dig/lib/fast.lib}
+set lib_dir [expr {[info exists env(FOUNDRY_LIB_DIR)] ? $env(FOUNDRY_LIB_DIR) : "/home/install/FOUNDRY/digital/90nm/dig/lib"}]
+set_db library "$lib_dir/slow.lib $lib_dir/fast.lib"
 
 #read the design and eloberate
-read_hdl -sv design.sv
+read_hdl -sv Design.sv
 
 elaborate
 

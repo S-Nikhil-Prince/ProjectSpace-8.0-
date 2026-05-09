@@ -1,0 +1,58 @@
+clk=0 addr=1000h data=1111h
+clk=1 addr=1004h data=2222h
+clk=2 addr=1008h data=3333h
+clk=3 addr=100ch data=4444h
+clk=4 addr=1010h data=5555h
+clk=5 addr=1014h data=6666h
+clk=6 addr=1018h data=7777h
+clk=7 addr=101ch data=8888h
+
+clk=8 addr=3000h data=aaaah
+clk=9 addr=4500h data=bbbbh
+clk=10 addr=2200h data=cccch
+clk=11 addr=6789h data=ddddh
+clk=12 addr=1111h data=eeeeh
+
+clk=13 addr=2000h data=1212h
+clk=14 addr=2004h data=2323h
+clk=15 addr=2008h data=3434h
+clk=16 addr=200ch data=4545h
+clk=17 addr=2010h data=5656h
+clk=18 addr=2014h data=6767h
+clk=19 addr=2018h data=7878h
+
+clk=20 addr=9999h data=8989h
+clk=21 addr=abcdh data=9090h
+clk=22 addr=3456h data=ababh
+clk=23 addr=8888h data=bcbch
+
+clk=24 addr=3000h data=cdcdh
+clk=25 addr=3004h data=dedeh
+clk=26 addr=3008h data=efefh
+clk=27 addr=300ch data=1010h
+clk=28 addr=3010h data=1112h
+clk=29 addr=3014h data=1213h
+clk=30 addr=3018h data=1314h
+clk=31 addr=301ch data=1415h
+clk=32 addr=3020h data=1516h
+
+clk=33 addr=7777h data=1617h
+clk=34 addr=1234h data=1718h
+clk=35 addr=9999h data=1819h
+
+clk=36 addr=4000h data=191ah
+clk=37 addr=4004h data=1a1bh
+clk=38 addr=4008h data=1b1ch
+clk=39 addr=400ch data=1c1dh
+clk=40 addr=4010h data=1d1eh
+clk=41 addr=4014h data=1e1fh
+
+clk=42 addr=2222h data=2021h
+clk=43 addr=3333h data=2122h
+clk=44 addr=4444h data=2223h
+
+clk=45 addr=5000h data=2324h
+clk=46 addr=5004h data=2425h
+clk=47 addr=5008h data=2526h
+clk=48 addr=500ch data=2627h
+clk=49 addr=5010h data=2728h

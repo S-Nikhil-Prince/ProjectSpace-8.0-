@@ -160,17 +160,7 @@ class driver;
             // ====================================
             // BURST-LEVEL PROTOCOL LOCKING
             // ====================================
-
-            if(tr.sequential)
-            begin
-                vif.burst_axi    <= 1;
-                vif.burst_bridge <= 0;
-            end
-            else
-            begin
-                vif.burst_axi    <= 0;
-                vif.burst_bridge <= 1;
-            end
+            // REMOVED: Protocol signals are now driven internally by the DUT based on traffic classification.
 
             vif.write <= tr.write;
             vif.read  <= tr.read;
@@ -246,10 +236,10 @@ class monitor;
                 $display("Beats      = %0d",
                          vif.total_beats);
 
-                if(vif.burst_axi)
+                if(vif.use_axi)
                     $display("Addr style =    SEQUENTIAL (AXI path)");
                 else
-                    $display("Addr style = RANDOM (BRIDGE/APB path)");
+                    $display("Addr style = RANDOM (APB path)");
 
                 $display("====================================================");
 
@@ -262,10 +252,10 @@ class monitor;
             if(vif.write)
             begin
 
-                if(vif.burst_axi)
+                if(vif.use_axi)
                     current_path = "AXI";
                 else
-                    current_path = "BRIDGE";
+                    current_path = "APB";
 
                 expected_mem[vif.addr] = vif.wdata;
 
@@ -285,15 +275,15 @@ class monitor;
             if(vif.read)
             begin
 
-                if(vif.burst_axi)
+                if(vif.use_axi)
                     current_path = "AXI";
                 else
-                    current_path = "BRIDGE";
+                    current_path = "APB";
 
                 if(vif.rdata == expected_mem[vif.addr])
                 begin
 
-                    if(vif.burst_axi)
+                    if(vif.use_axi)
                         axi_pass++;
                     else
                         bridge_pass++;
@@ -311,7 +301,7 @@ class monitor;
                 else
                 begin
 
-                    if(vif.burst_axi)
+                    if(vif.use_axi)
                         axi_fail++;
                     else
                         bridge_fail++;
@@ -396,6 +386,18 @@ end
 initial
 begin
     #5000;
+    $display("");
+    $display("====================================================");
+    $display("               FINAL SCOREBOARD SUMMARY             ");
+    $display("====================================================");
+    $display("AXI Path     - Passes: %0d, Fails: %0d", env.mon.axi_pass, env.mon.axi_fail);
+    $display("APB Path     - Passes: %0d, Fails: %0d", env.mon.bridge_pass, env.mon.bridge_fail);
+    $display("====================================================");
+    if (env.mon.axi_fail == 0 && env.mon.bridge_fail == 0)
+        $display("STATUS: VERIFICATION PASSED");
+    else
+        $display("STATUS: VERIFICATION FAILED");
+    $display("====================================================");
     $finish;
 end
 endmodule

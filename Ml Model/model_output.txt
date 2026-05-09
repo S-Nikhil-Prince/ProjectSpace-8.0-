@@ -1,0 +1,9 @@
+clk 0 to clk 4 : APB
+clk 5 to clk 7 : AXI
+clk 8 to clk 17 : APB
+clk 18 to clk 19 : AXI
+clk 20 to clk 28 : APB
+clk 29 to clk 32 : AXI
+clk 33 to clk 40 : APB
+clk 41 to clk 41 : AXI
+clk 42 to clk 49 : APB
