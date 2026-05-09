@@ -1,1 +1,1 @@
-xrun -sv -access +rwc design.sv tb.sv -gui
+xrun -sv -access +rwc Design.sv TB.sv
