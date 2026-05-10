@@ -364,8 +364,6 @@ begin
     vif.wdata = 0;
     vif.write = 0;
     vif.read  = 0;
-    vif.bready = 0;
-    vif.rready = 0;
     #50;
     vif.reset = 0;
 end

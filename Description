@@ -1,5 +1,5 @@
 
-Adaptive Hybrid AXI–APB Memory Interface for Efficient CPU–SRAM Communication
+AXI-APB Hybrid Interface
 
 Problem Statement: 
 Many modern SoC systems rely on high-speed communication protocols for all memory transactions, even when 

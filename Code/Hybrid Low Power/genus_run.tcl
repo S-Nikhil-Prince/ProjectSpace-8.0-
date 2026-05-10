@@ -8,7 +8,7 @@ read_hdl -sv Design.sv
 elaborate
 
 #read constraints
-read_sdc Hybrid_input_constraints.sdc
+read_sdc Hybrid_Low_Power_input_constraints.sdc
 
 #setting effort settings
 set_db syn_generic_effort medium
