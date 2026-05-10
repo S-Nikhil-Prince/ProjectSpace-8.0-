@@ -41,13 +41,16 @@ Synthesized using **Cadence Genus** with 90nm libraries, our Hybrid interface yi
 | Configuration | Total Power |
 | ------------- | ----------- |
 | AXI-Only (Baseline) | 28.7 mW |
-| **AXI-APB Hybrid** | **1.43 mW** |
+| **AXI-APB Hybrid** | **16.23 mW** |
 
 *Conclusion: Workload-aware protocol switching dramatically reduces energy overhead in battery-critical systems while maintaining peak performance.*
+
+## 📂 Future Scope
+- `Advanced Integration Flexibility`: Future improvements can focus on developing a more intelligent traffic analysis module capable of handling large-scale real-time workloads. This would allow the hybrid AXI–APB interface to be deployed in complex SoC architectures, embedded platforms, sensor hubs, and power-efficient edge devices.
 
 ## 📂 Repository Structure
 
 - `Code/Hybrid Low Power/`: Unified SystemVerilog RTL, Testbench, Genus TCL scripts, and Xcelium run scripts.
-- `Code/Outputs Files/`: Full Cadence Genus Power, Timing, and Area reports.
-- `Ml Model/`: Scikit-Learn training pipeline, transaction datasets, and validation scripts.
+- `Code/Outputs Files/`: Full Cadence Genus Power, and Area reports.
+- `Ml Model/`: (Seperate Flow) Scikit-Learn training pipeline, transaction datasets, and validation scripts.
 - `Documentation/` & `PPT/`: Project reports and presentations.
