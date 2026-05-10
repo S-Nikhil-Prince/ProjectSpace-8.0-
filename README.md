@@ -53,11 +53,35 @@ Synthesized using **Cadence Genus** with 90nm libraries, our Hybrid interface yi
 | AXI-Only (Baseline) | 28.7 mW |
 | **AXI-APB Hybrid** | **16.23 mW** |
 
-*Conclusion: Workload-aware protocol switching dramatically reduces energy overhead in battery-critical systems while maintaining peak performance.*
+> **Conclusion:** Workload-aware protocol switching dramatically reduces energy overhead in power-critical systems while maintaining peak performance.
+
+---
 
 ## 📂 Repository Structure
 
-- `Code/Hybrid Low Power/`: Unified SystemVerilog RTL, Testbench, Genus TCL scripts, and Xcelium run scripts.
-- `Code/Outputs Files/`: Full Cadence Genus Power, Timing, and Area reports.
-- `Ml Model/`: Scikit-Learn training pipeline, transaction datasets, and validation scripts.
-- `Documentation/` & `PPT/`: Project reports and presentations.
+```text
+ProjectSpace-8.0-/
+├── Code/
+│   ├── Hybrid Low Power/      # Main unified design
+│   │   ├── Design.sv          # All RTL modules
+│   │   ├── TB.sv              # OOP testbench
+│   │   ├── genus_run.tcl      # Synthesis script
+│   │   ├── xcelium_run.sh     # Simulation script
+│   │   └── constraints.sdc    # Timing constraints
+│   └── Outputs Files/         # Synthesis reports
+│       ├── Hybrid Reports.txt
+│       └── AXI Reports.txt
+├── Ml Model/                  # ML training & validation
+│   ├── DecisionTree.py        # Scikit-Learn Decision Tree
+│   ├── rule_based.py          # Rule-based verification
+│   ├── compare.py             # ML vs Rule comparison
+│   ├── bridge_output.txt      # Input transaction data
+│   ├── model_output.txt       # ML classification output
+│   └── final_output.txt       # Rule-based output
+├── Documentation/
+├── Animation/
+├── PPT/
+├── Code/Reports.txt           # Comparative analysis
+├── Description
+└── README.md                  # Professional project documentation
+```
