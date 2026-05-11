@@ -300,13 +300,37 @@ module sram_model #(
     logic [DATA_WIDTH-1:0] mem [0:MEM_DEPTH-1];
     integer cycle_count;
 
+    // -----------------------------------------------------------
+    // Write Port: Synchronous write on positive clock edge
+    // -----------------------------------------------------------
     always_ff @(posedge clk) begin
         if (we && addr < MEM_DEPTH) begin
             mem[addr] <= wdata;
         end
     end
 
-    assign rdata = mem[addr];
+    // -----------------------------------------------------------
+    // Read Port: Synchronous registered read (1-cycle latency)
+    // -----------------------------------------------------------
+    // DESIGN NOTE: The previous implementation used a purely
+    // combinational read path (assign rdata = mem[addr]) which
+    // creates an asynchronous read. While functionally correct
+    // for simulation, this causes:
+    //   1. Hold-time violations in ASIC synthesis flows
+    //   2. Timing closure difficulties due to long combinational
+    //      paths through the memory array
+    //   3. Incompatibility with standard SRAM compiler outputs
+    //
+    // The registered read below ensures synthesis correctness
+    // and matches the behavior of real SRAM macro interfaces.
+    // Read data appears one clock cycle after address is presented.
+    // -----------------------------------------------------------
+    always_ff @(posedge clk) begin
+        if (reset)
+            rdata <= '0;
+        else if (addr < MEM_DEPTH)
+            rdata <= mem[addr];
+    end
 
     always_ff @(posedge clk) begin
         if (reset) cycle_count <= 0;

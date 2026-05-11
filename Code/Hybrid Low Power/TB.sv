@@ -473,48 +473,58 @@ class monitor;
             // ====================================
             // READ MONITORING
             // ====================================
+            // NOTE: SRAM uses synchronous registered reads (1-cycle latency).
+            // We capture the read address now, then wait 1 clock cycle for
+            // the registered rdata to become valid before checking.
 
             if(vif.read)
             begin
+                // Capture read metadata on the request cycle
+                automatic bit [7:0]  read_addr     = vif.addr;
+                automatic int        read_beat_id  = vif.beat_id;
+                automatic bit        read_use_axi  = vif.use_axi;
 
-                if(vif.use_axi)
+                if(read_use_axi)
                     current_path = "AXI";
                 else
                     current_path = "APB";
 
-                if(vif.rdata == expected_mem[vif.addr])
+                // Wait 1 cycle for registered SRAM read data to appear
+                @(posedge vif.clk);
+
+                if(vif.rdata == expected_mem[read_addr])
                 begin
 
-                    if(vif.use_axi)
+                    if(read_use_axi)
                         axi_pass++;
                     else
                         bridge_pass++;
 
                     $display("[%0t] READ  beat=%0d path=%6s addr=%0h data=%0h (expected=%0h)",
                              $time,
-                             vif.beat_id,
+                             read_beat_id,
                              current_path,
-                             vif.addr,
+                             read_addr,
                              vif.rdata,
-                             expected_mem[vif.addr]);
+                             expected_mem[read_addr]);
 
                 end
 
                 else
                 begin
 
-                    if(vif.use_axi)
+                    if(read_use_axi)
                         axi_fail++;
                     else
                         bridge_fail++;
 
                     $display("[%0t] READ FAIL beat=%0d path=%6s addr=%0h data=%0h (expected=%0h)",
                              $time,
-                             vif.beat_id,
+                             read_beat_id,
                              current_path,
-                             vif.addr,
+                             read_addr,
                              vif.rdata,
-                             expected_mem[vif.addr]);
+                             expected_mem[read_addr]);
                 end
             end
         end

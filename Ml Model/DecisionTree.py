@@ -88,25 +88,32 @@ def classify_and_write(transactions, model, output_file):
     burst_len = 1
     prev_type = "APB"  # start safe
     
+    diffs = []
+    
     for i in range(1, len(transactions)):
         clk, addr, _ = transactions[i]
         
         diff = addr - prev_addr
+        diffs.append(diff)
         
         if diff == 4:
             burst_len += 1
         else:
             burst_len = 1
         
-        # ML prediction
+        # ML prediction — use the trained model to classify traffic
         is_inc = 1 if diff == 4 else 0
         streak_flag = 1 if burst_len > 2 else 0
         
-        feature = np.array([[diff, is_inc, burst_len, diff, streak_flag]])
+        # Rolling mean of last 3 diffs (matches training feature set)
+        last_diffs = diffs[-3:]
+        rolling_mean = sum(last_diffs) / len(last_diffs)
+        
+        feature = np.array([[diff, is_inc, burst_len, rolling_mean, streak_flag]])
         pred = model.predict(feature)[0]
         
-        # Enforce burst rule
-        if burst_len > 5:
+        # Use the ML model's prediction directly
+        if pred == 1:
             current_type = "AXI"
         else:
             current_type = "APB"
