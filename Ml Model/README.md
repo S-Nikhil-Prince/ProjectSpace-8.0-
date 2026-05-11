@@ -53,11 +53,14 @@ module ml_decision_lut (
     input  logic [4:0] burst_len,
     input  logic       addr_diff_sequential,
     input  logic       streak_flag,
+    input  logic       burst_hint,
     output logic       predict_axi
 );
     always_comb begin
         predict_axi = 1'b0;  // Default: APB
-        if (burst_len > 5'd5) begin
+        if (burst_hint) begin
+            predict_axi = 1'b1;  // CPU requests burst → immediate AXI
+        end else if (burst_len > 5'd5) begin
             if (addr_diff_sequential)
                 predict_axi = 1'b1;  // AXI: long sequential burst
         end

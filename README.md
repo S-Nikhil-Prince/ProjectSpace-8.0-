@@ -41,11 +41,14 @@ module ml_decision_lut (
     input  logic [4:0] burst_len,            // Burst length feature
     input  logic       addr_diff_sequential,  // Sequential address detection
     input  logic       streak_flag,           // Streak > 2 indicator
+    input  logic       burst_hint,            // CPU burst-type hint (1=sequential)
     output logic       predict_axi           // ML prediction output
 );
     always_comb begin
         predict_axi = 1'b0;  // Default: low-power APB
-        if (burst_len > 5'd5 && addr_diff_sequential)
+        if (burst_hint)
+            predict_axi = 1'b1;  // CPU requests burst → immediate AXI
+        else if (burst_len > 5'd5 && addr_diff_sequential)
             predict_axi = 1'b1;  // AXI: sequential burst exceeds learned threshold
     end
 endmodule
