@@ -1,1 +1,1 @@
-xrun -sv -access +rwc -assert -coverage all Design.sv TB.sv
+xrun -sv -access +rwc -assert -coverage all -covoverwrite Design.sv TB.sv
