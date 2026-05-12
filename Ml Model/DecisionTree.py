@@ -22,7 +22,7 @@ def parse_line(line):
         addr = int(parts[1].split('=')[1].replace('h',''), 16)
         data = int(parts[2].split('=')[1].replace('h',''), 16)
         return clk, addr, data
-    except:
+    except (ValueError, IndexError, KeyError):
         return None
 
 
@@ -244,6 +244,7 @@ def _generate_sv_lut(rules, feature_names):
     sv.append("    input  logic [4:0] burst_len,")
     sv.append("    input  logic       addr_diff_sequential,")
     sv.append("    input  logic       streak_flag,")
+    sv.append("    input  logic       burst_hint,")
     sv.append("    output logic       predict_axi")
     sv.append(");")
     sv.append("")
@@ -251,10 +252,16 @@ def _generate_sv_lut(rules, feature_names):
     sv.append("        predict_axi = 1'b0;  // Default: APB (low power)")
     sv.append("")
     
-    # Generate conditions for AXI selection
+    # burst_hint override: CPU hint takes highest priority (matches Design.sv)
+    sv.append("        // CPU burst-type hint (highest priority, zero-latency)")
+    sv.append("        if (burst_hint) begin")
+    sv.append("            predict_axi = 1'b1;  // AXI: CPU requests burst")
+    sv.append("        end")
+    
+    # Generate remaining conditions from trained tree
     axi_rules = [r for r in rules if r['class'] == 1]
     for i, rule in enumerate(axi_rules):
-        prefix = "        if" if i == 0 else "        else if"
+        prefix = "        else if"
         conditions = _translate_conditions(rule['conditions'])
         sv.append(f"{prefix} ({conditions}) begin")
         sv.append(f"            predict_axi = 1'b1;  // AXI (high throughput)")
