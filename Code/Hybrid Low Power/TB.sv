@@ -331,6 +331,39 @@ class functional_coverage;
         }
     endgroup
 
+    // --------------------------------------------------------
+    // Covergroup 6: Power State Coverage
+    // --------------------------------------------------------
+    // Tracks the system's power-related states: idle vs active,
+    // and correlates burst_hint with actual protocol selection
+    // to verify the ML classifier's responsiveness.
+    // --------------------------------------------------------
+    covergroup cg_power_state @(posedge vif.clk);
+        option.per_instance = 1;
+        option.name = "Power_State_Coverage";
+
+        cp_idle : coverpoint (vif.write == 0 && vif.read == 0) {
+            bins active = {0};
+            bins idle   = {1};
+        }
+
+        cp_burst_hint : coverpoint vif.burst_hint {
+            bins no_burst = {0};
+            bins burst    = {1};
+        }
+
+        cp_protocol_sel : coverpoint vif.use_axi {
+            bins apb_selected = {0};
+            bins axi_selected = {1};
+        }
+
+        // Cross: burst_hint vs actual protocol — verifies ML responds to hints
+        cx_hint_vs_proto : cross cp_burst_hint, cp_protocol_sel {
+            bins hint_axi_correct = binsof(cp_burst_hint.burst) && binsof(cp_protocol_sel.axi_selected);
+            bins hint_apb_random  = binsof(cp_burst_hint.no_burst) && binsof(cp_protocol_sel.apb_selected);
+        }
+    endgroup
+
     function new(virtual cpu_if vif);
         this.vif = vif;
         prev_use_axi = 0;
@@ -340,6 +373,7 @@ class functional_coverage;
         cg_address_pattern = new();
         cg_transitions = new();
         cg_operations = new();
+        cg_power_state = new();
     endfunction
 
     task run();
@@ -360,6 +394,7 @@ class functional_coverage;
         $display("Address Pattern Coverage : %0.2f%%", cg_address_pattern.get_inst_coverage());
         $display("Transition Coverage      : %0.2f%%", cg_transitions.get_inst_coverage());
         $display("Operation Type Coverage  : %0.2f%%", cg_operations.get_inst_coverage());
+        $display("Power State Coverage     : %0.2f%%", cg_power_state.get_inst_coverage());
         $display("====================================================");
     endfunction
 

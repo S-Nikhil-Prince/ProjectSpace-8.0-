@@ -1,4 +1,7 @@
 import numpy as np
+import os
+import sys
+import argparse
 from sklearn.tree import DecisionTreeClassifier, export_text
 from sklearn.metrics import accuracy_score
 
@@ -297,14 +300,65 @@ def _translate_conditions(conditions):
 
 
 # ----------------------------
-# MAIN
+# AUTO-VERIFICATION: Compare ML vs Rule-Based
+# ----------------------------
+def auto_verify(ml_output="model_output.txt", rule_output="final_output.txt"):
+    """
+    Automatically compare ML classification output against the
+    rule-based baseline to verify model correctness.
+    Returns (matches, mismatches) count.
+    """
+    if not os.path.exists(rule_output):
+        print(f"  ⚠ Rule-based output '{rule_output}' not found — skipping verification")
+        return 0, 0
+    
+    with open(ml_output, 'r') as f:
+        ml_lines = f.readlines()
+    with open(rule_output, 'r') as f:
+        rule_lines = f.readlines()
+    
+    matches = 0
+    mismatches = 0
+    for m, r in zip(ml_lines, rule_lines):
+        if m.strip() == r.strip():
+            matches += 1
+        else:
+            mismatches += 1
+            print(f"  ❌ ML: {m.strip()} | RULE: {r.strip()}")
+    
+    return matches, mismatches
+
+
+# ----------------------------
+# MAIN: Automated ML-to-Hardware Pipeline
 # ----------------------------
 def main():
-    input_file = "bridge_output.txt"
-    output_file = "model_output.txt"
-    sv_output_file = "ml_decision_lut.sv"
+    parser = argparse.ArgumentParser(
+        description="ML Decision Tree Training & Hardware LUT Export Pipeline"
+    )
+    parser.add_argument("--input", default="bridge_output.txt",
+                        help="Input transaction data file")
+    parser.add_argument("--output", default="model_output.txt",
+                        help="ML classification output file")
+    parser.add_argument("--sv-output", default="ml_decision_lut.sv",
+                        help="Generated SystemVerilog LUT file (local)")
+    parser.add_argument("--design-dir", default=None,
+                        help="Path to Code/Hybrid Low Power/ for auto-copy")
+    args = parser.parse_args()
     
-    with open(input_file, 'r') as f:
+    # Resolve design directory relative to script location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    if args.design_dir is None:
+        # Default: sibling directory Code/Hybrid Low Power/
+        args.design_dir = os.path.join(script_dir, "..", "Code", "Hybrid Low Power")
+    
+    print("=" * 60)
+    print("  ML-TO-HARDWARE AUTOMATED PIPELINE")
+    print("=" * 60)
+    
+    # Step 1: Load data
+    input_path = os.path.join(script_dir, args.input)
+    with open(input_path, 'r') as f:
         lines = f.readlines()
     
     transactions = []
@@ -314,22 +368,49 @@ def main():
             transactions.append(parsed)
     
     if len(transactions) < 2:
-        print("Not enough data")
-        return
+        print("ERROR: Not enough valid transactions in input file")
+        return 1
     
+    print(f"\n  Step 1: Loaded {len(transactions)} transactions from {args.input}")
+    
+    # Step 2: Train model
     X, y = extract_features(transactions)
-    
     feature_names = ["addr_diff", "is_inc", "burst_len", "rolling_mean", "streak_flag"]
-    
     model = train_model(X, y)
+    print(f"  Step 2: Model trained (depth={model.get_depth()}, leaves={model.get_n_leaves()})")
     
-    classify_and_write(transactions, model, output_file)
+    # Step 3: Classify and write output
+    output_path = os.path.join(script_dir, args.output)
+    classify_and_write(transactions, model, output_path)
+    print(f"  Step 3: Classification output → {args.output}")
     
-    print("Output written to model_output.txt")
+    # Step 4: Auto-verify against rule-based baseline
+    rule_path = os.path.join(script_dir, "final_output.txt")
+    matches, mismatches = auto_verify(output_path, rule_path)
+    if matches + mismatches > 0:
+        print(f"  Step 4: Verification — {matches} matches, {mismatches} mismatches")
     
-    # Export trained tree to SystemVerilog LUT for hardware synthesis
-    export_tree_to_sv_lut(model, feature_names, sv_output_file)
+    # Step 5: Export SystemVerilog LUT (local copy)
+    sv_local = os.path.join(script_dir, args.sv_output)
+    export_tree_to_sv_lut(model, feature_names, sv_local)
+    
+    # Step 6: Auto-copy LUT to design directory
+    design_dir = os.path.normpath(args.design_dir)
+    if os.path.isdir(design_dir):
+        sv_design_copy = os.path.join(design_dir, args.sv_output)
+        import shutil
+        shutil.copy2(sv_local, sv_design_copy)
+        print(f"\n  Step 6: LUT auto-copied → {sv_design_copy}")
+        print("          Design.sv and ML model are now SYNCHRONIZED")
+    else:
+        print(f"\n  ⚠ Design directory not found: {design_dir}")
+        print(f"    Manual copy needed: cp {sv_local} <design_dir>/")
+    
+    print("\n" + "=" * 60)
+    print("  PIPELINE COMPLETE")
+    print("=" * 60)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

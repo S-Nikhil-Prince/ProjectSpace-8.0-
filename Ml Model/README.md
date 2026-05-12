@@ -11,13 +11,13 @@ The goal is to answer: *How many sequential address increments — combined with
 ## Files
 
 1. **`bridge_output.txt`**: The raw transaction dataset simulating typical CPU workload patterns (bursty vs. random).
-2. **`DecisionTree.py`**: The training script. It extracts features (burst length, address diff, rolling mean, streak flag) and trains a `DecisionTreeClassifier` with `max_depth=5`. **Critically, it also exports the full tree structure as a synthesizable SystemVerilog LUT** via `export_tree_to_sv_lut()`.
+2. **`DecisionTree.py`**: The automated training & export pipeline. It extracts features (burst length, address diff, rolling mean, streak flag), trains a `DecisionTreeClassifier` with `max_depth=5`, **exports the full tree as a synthesizable SystemVerilog LUT**, and **auto-copies it to the design directory**. Includes automatic verification against the rule-based baseline.
 3. **`rule_based.py`**: A purely rule-based approach used as a baseline to verify the ML model's logic.
 4. **`compare.py`**: Compares the output of the ML model (`model_output.txt`) against the rule-based expected logic (`final_output.txt`) to ensure accuracy.
 
-## ML-to-Hardware Pipeline
+## Automated ML-to-Hardware Pipeline
 
-The trained Scikit-Learn model's **full decision tree** is extracted and mapped directly to hardware RTL as a combinational lookup table (LUT). This is not a simple threshold extraction — the complete tree structure (all nodes, feature comparisons, and leaf classifications) is translated to synthesizable SystemVerilog.
+The trained Scikit-Learn model's **full decision tree** is extracted and mapped directly to hardware RTL as a combinational lookup table (LUT). The pipeline is **fully automated** — running `DecisionTree.py` trains, exports, verifies, and copies the LUT in a single step.
 
 ### Pipeline Steps
 
@@ -28,11 +28,27 @@ bridge_output.txt  →  Feature Engineering  →  DecisionTreeClassifier (max_de
                                                        │
                                               ml_decision_lut.sv
                                                        │
-                                        Design.sv (ml_decision_lut module)
-                                                       │
-                                          traffic_classifier uses LUT
-                                                       │
-                                       Zero-latency protocol selection
+                                    ┌──────────────────┤
+                                    │                  │
+                            Auto-copied to      Auto-verified against
+                            Design.sv dir       rule_based.py baseline
+                                    │
+                          traffic_classifier uses LUT
+                                    │
+                       Zero-latency protocol selection
+```
+
+### Usage
+
+```bash
+# Full automated pipeline (train + export + copy + verify)
+python DecisionTree.py
+
+# With custom paths
+python DecisionTree.py --input bridge_output.txt --design-dir "../Code/Hybrid Low Power/"
+
+# Via Makefile (from Code/Hybrid Low Power/)
+make ml
 ```
 
 ### Decision Tree Structure (Learned)
@@ -44,6 +60,7 @@ The trained tree evaluates multiple features simultaneously:
 | `burst_len` | `burst_len[4:0]` | Count of consecutive sequential addresses |
 | `is_inc` / `addr_diff` | `addr_diff_sequential` | Whether current address follows sequential stride |
 | `streak_flag` | `streak_flag` | Whether burst_len exceeds a minimum streak threshold |
+| `burst_hint` | `burst_hint` | CPU-provided burst type hint (analogous to AXI ARBURST) |
 
 ### Hardware Inference (in Design.sv)
 
@@ -60,18 +77,16 @@ module ml_decision_lut (
         predict_axi = 1'b0;  // Default: APB
         if (burst_hint) begin
             predict_axi = 1'b1;  // CPU requests burst → immediate AXI
-        end else if (burst_len > 5'd5) begin
-            if (addr_diff_sequential)
-                predict_axi = 1'b1;  // AXI: long sequential burst
+        end else if (burst_len > 5'd5 && addr_diff_sequential) begin
+            predict_axi = 1'b1;  // AXI: long sequential burst
         end
     end
 endmodule
 ```
 
-The `traffic_classifier` module extracts features from live CPU transactions and feeds them to the `ml_decision_lut` every clock cycle. The LUT produces a single-cycle combinational prediction which is then registered into the protocol selection outputs (`use_axi`, `use_apb`).
-
 ### Key Properties
 - **Zero-latency inference**: Pure combinational logic, no pipeline stages
-- **Minimal gate overhead**: The tree compiles to ~10 gates in Cadence Genus synthesis
+- **Minimal gate overhead**: The tree compiles to ~10 gates in Cadence Genus synthesis (735 µm² = 1.2% of total area)
 - **Faithful model reproduction**: Every decision path from the Scikit-Learn tree is preserved
-- **Automated generation**: Running `python DecisionTree.py` re-exports the LUT from the latest trained model
+- **Automated synchronization**: Running `python DecisionTree.py` re-exports and auto-copies the LUT, ensuring model-hardware consistency
+- **Built-in verification**: Automatic comparison against rule-based baseline on every run

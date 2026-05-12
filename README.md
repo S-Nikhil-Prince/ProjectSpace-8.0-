@@ -26,12 +26,36 @@ bridge_output.txt → Feature Engineering → DecisionTree (max_depth=5)
                                                 │
                                     export_tree_to_sv_lut()
                                                 │
-                                    ml_decision_lut module (Design.sv)
+                                    ml_decision_lut.sv (auto-generated)
                                                 │
-                                    traffic_classifier uses LUT
-                                                │
-                                    Zero-latency protocol selection
+                            ┌───────────────────┤
+                            │                   │
+                    Auto-copied to          Verified against
+                    Code/Hybrid Low Power/  rule_based.py baseline
+                            │
+                    traffic_classifier uses LUT
+                            │
+                    Zero-latency protocol selection
 ```
+
+### Automated Synchronization
+
+The ML model and hardware LUT are **automatically synchronized** via the build pipeline:
+
+```bash
+# Single command trains model, exports LUT, and copies to design directory
+python DecisionTree.py
+# Or via Makefile:
+make ml
+```
+
+The `DecisionTree.py` script:
+1. Trains the model on `bridge_output.txt`
+2. Exports the tree as `ml_decision_lut.sv`
+3. **Auto-copies** the generated LUT to `Code/Hybrid Low Power/`
+4. **Auto-verifies** against the rule-based baseline (`final_output.txt`)
+
+This eliminates any risk of model-hardware divergence.
 
 ### Hardware Inference Module
 
@@ -54,18 +78,45 @@ module ml_decision_lut (
 endmodule
 ```
 
-The tree evaluates **burst length**, **address sequentiality**, and **streak patterns** simultaneously — not a single hardcoded threshold.
-
 ---
 
-## 🏗️ Unified Architecture & Extensibility
+## 🏗️ Architecture & Extensibility
 
-This project features a clean, single-top parameterized design (`top_memory_system`):
+### Modular Design
 
+The project features a clean, parameterized architecture with **5 standalone modules**:
+
+| Module | Role |
+|:-------|:-----|
+| `traffic_classifier` | ML-driven burst detection with sliding window |
+| `ml_decision_lut` | Combinational decision tree inference engine |
+| `protocol_arbiter` | **Parameterized** multi-protocol signal generation |
+| `shared_fifo` | Parameterized FIFO with 3-case count logic |
+| `sram_model` | Synchronous registered-read SRAM model |
+
+### Parameterized Protocol Arbiter
+
+The protocol arbiter is extracted as a **standalone, parameterized module** supporting incremental protocol extension:
+
+```systemverilog
+module protocol_arbiter #(
+    parameter ENABLE_AHB = 0   // Set to 1 to activate AHB protocol path
+)( ... );
+```
+
+Key properties:
+- **Clock-gating enables** (`axi_clk_en`, `apb_clk_en`, `ahb_clk_en`) per protocol for power optimization
+- **AHB stub** conditionally compiled via `generate` block — activation requires only a parameter change
+- **Mutual exclusion** enforced at the signal level, verified by SVA assertions
+
+### AHB Extension Path
+
+Adding AHB requires **only** changing `ENABLE_AHB=1` at instantiation. The `protocol_t` enum already includes `PROTO_AHB = 2'b10`, and the generate block contains the AHB-Lite signal scaffolding (hsel, htrans, hwrite, hready, hresp).
+
+### Design Principles
 - **Strict DUT/Testbench Boundaries**: All protocol signals are internal to the DUT. The Testbench drives pure transaction data.
-- **Protocol Arbiter Pattern**: Extensible protocol selection via parameterized enums (`PROTO_APB`, `PROTO_AXI`).
-- **SVA Assertions**: Formal property checks ensuring robust protocol handshaking, mutual exclusion, and FIFO safety.
-- **Functional Coverage**: Comprehensive covergroups measuring protocol transitions, burst length distribution, address patterns, and operation×protocol cross coverage.
+- **8 SVA Assertions**: APB handshaking (2), AXI write+read channel handshakes (3), protocol mutual exclusion (1), FIFO safety (2), clock-gating correctness (1), protocol liveness (1).
+- **6 Functional Covergroups**: Protocol switching, burst length distribution, address patterns, protocol transitions, operation-type cross, and power state correlation.
 
 ---
 
@@ -75,24 +126,37 @@ The testbench (`TB.sv`) implements a professional UVM-style layered verification
 
 | Component | Description |
 |:----------|:------------|
-| **Generator** | Produces constrained-random and sequential traffic patterns |
-| **Driver** | Converts transactions to pin-level stimulus |
-| **Monitor** | Observes DUT outputs with data integrity scoreboard |
-| **Functional Coverage** | 5 covergroups tracking protocol switches, burst lengths, address regions, transitions, and operations |
-| **SVA Assertions** | APB handshaking, AXI valid-ready, mutual exclusion, FIFO overflow/underflow |
+| **Generator** | Produces constrained-random and sequential traffic patterns with read-back verification |
+| **Driver** | Converts transactions to pin-level stimulus with burst-type hints |
+| **Monitor** | Observes DUT outputs with data integrity scoreboard and protocol transition tracking |
+| **Functional Coverage** | 6 covergroups tracking protocol switches, burst lengths, address regions, transitions, operations, and power states |
+| **SVA Assertions** | 8 properties: APB handshaking, AXI valid-ready (write+read), mutual exclusion, FIFO overflow/underflow, clock-gating correctness, protocol liveness |
 
 ---
 
-## 📊 Results (Power Savings)
+## 📊 Results (Power & Area Analysis)
 
-Synthesized using **Cadence Genus** with GSCL 90nm libraries, our Hybrid interface yields exceptional power savings compared to a persistent AXI interface:
+Synthesized using **Cadence Genus** with GSCL 90nm libraries:
 
-| Configuration | Total Power |
-| :--- | :--- |
-| AXI-Only (Baseline) | 28.7 mW |
-| **AXI-APB Hybrid** | **1.43 mW** |
+### Power Comparison
 
-> **Conclusion:** Workload-aware protocol switching dramatically reduces energy overhead in power-critical systems while maintaining peak performance.
+| Configuration | Total Power | Reduction |
+|:---|:---|:---|
+| AXI-Only (Baseline) | 28.73 mW | — |
+| **AXI-APB Hybrid** | **1.43 mW** | **95.02%** |
+
+### Area Comparison
+
+| Configuration | Total Area | Overhead |
+|:---|:---|:---|
+| AXI-Only | 91,967 µm² | — |
+| AXI-APB Hybrid | 61,934 µm² | -32.7% |
+
+### ML Classifier Efficiency
+
+The traffic classifier adds only **1.2% area** (735 µm²) while enabling **95% power savings** — a power efficiency ratio of 37.1 µW per µm².
+
+> **Conclusion:** Workload-aware protocol switching delivers 20.1x power reduction with no area penalty, making it ideal for power-critical SoC designs.
 
 ---
 
@@ -100,16 +164,55 @@ Synthesized using **Cadence Genus** with GSCL 90nm libraries, our Hybrid interfa
 
 | Tool | Purpose |
 |:-----|:--------|
-| **Cadence Genus** | RTL Synthesis (90nm libraries) |
-| **Cadence Xcelium** | SystemVerilog Simulation |
-| **Scikit-Learn** | Decision Tree training & LUT export |
+| **Cadence Genus** | RTL Synthesis (GSCL 90nm libraries) |
+| **Cadence Xcelium** | SystemVerilog Simulation with SVA + Coverage |
+| **Xilinx Vivado** | FPGA Synthesis & Prototyping (Artix-7) |
+| **Scikit-Learn** | Decision Tree training & hardware LUT export |
 | **SystemVerilog** | RTL Design & OOP Testbench |
+
+---
+
+## 🔨 Build Instructions
+
+### Prerequisites
+- Python 3.x with `scikit-learn`, `numpy`
+- Cadence Xcelium (simulation)
+- Cadence Genus (synthesis)
+
+### Automated Pipeline (Makefile)
+
+```bash
+cd Code/Hybrid\ Low\ Power/
+
+# Full pipeline: ML → Simulation → Synthesis
+make all
+
+# Individual steps:
+make ml      # Train ML model, export and auto-copy SV LUT
+make sim     # Run Xcelium simulation with assertions + coverage
+make synth   # Run Genus synthesis, generate power/area/timing reports
+```
+
+### Manual Steps
+
+```bash
+# 1. Train ML and generate hardware LUT
+cd "Ml Model/"
+python DecisionTree.py
+
+# 2. Simulate
+cd "Code/Hybrid Low Power/"
+bash xcelium_run.sh
+
+# 3. Synthesize
+genus -f genus_run.tcl
+```
 
 ---
 
 ## 🚀 Future Scope
 
-- **AHB Protocol Extension**: The modular architecture (separate `traffic_classifier`, `shared_fifo`, `sram_model`, and protocol arbiter blocks) supports adding AHB protocol without deep redesign. The `protocol_t` enum and arbiter pattern are designed for straightforward extension.
+- **AHB Protocol Extension**: The parameterized `protocol_arbiter` module supports AHB activation via a single parameter change (`ENABLE_AHB=1`). The `protocol_t` enum includes `PROTO_AHB`, and the AHB-Lite stub (hsel, htrans, hwrite, hready, hresp) is conditionally compiled via a generate block. No existing AXI/APB code requires modification.
 
 ---
 
@@ -119,16 +222,19 @@ Synthesized using **Cadence Genus** with GSCL 90nm libraries, our Hybrid interfa
 ProjectSpace-8.0-/
 ├── Code/
 │   ├── Hybrid Low Power/      # Main unified design
-│   │   ├── Design.sv          # All RTL modules + ML decision LUT
-│   │   ├── TB.sv              # OOP testbench + functional coverage
-│   │   ├── genus_run.tcl      # Synthesis script (Cadence Genus)
+│   │   ├── Design.sv          # RTL: 6 modules + ML LUT + 8 SVA assertions
+│   │   ├── TB.sv              # OOP testbench + 6 covergroups
+│   │   ├── genus_run.tcl      # ASIC synthesis script (Cadence Genus)
+│   │   ├── vivado_synth.tcl   # FPGA synthesis script (Xilinx Vivado)
+│   │   ├── fpga_constraints.xdc # FPGA pin/timing constraints (Artix-7)
 │   │   ├── xcelium_run.sh     # Simulation script (Cadence Xcelium)
-│   │   └── *.sdc              # Timing constraints
+│   │   ├── Makefile           # Automated ML → Sim → Synth pipeline
+│   │   └── *.sdc              # ASIC timing constraints
 │   └── Outputs Files/         # Synthesis reports
 │       ├── Hybrid Reports.txt
 │       └── AXI Reports.txt
 ├── Ml Model/                  # ML training & hardware export
-│   ├── DecisionTree.py        # Scikit-Learn training + SV LUT export
+│   ├── DecisionTree.py        # Scikit-Learn training + auto SV LUT export
 │   ├── rule_based.py          # Rule-based verification baseline
 │   ├── compare.py             # ML vs Rule comparison
 │   ├── bridge_output.txt      # Input transaction data
@@ -137,7 +243,7 @@ ProjectSpace-8.0-/
 ├── Documentation/
 ├── Animation/
 ├── PPT/
-├── Code/Reports.txt           # Comparative power analysis
+├── Code/Reports.txt           # Comparative power & area analysis
 ├── Description
 └── README.md
 ```

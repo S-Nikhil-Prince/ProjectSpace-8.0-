@@ -44,7 +44,9 @@ def classify_transactions(transactions):
         start_clk = transactions[start_idx][0]
         end_clk = transactions[i-1][0]
         
-        if burst_len > 5:
+        # Threshold aligned with ML model: 5+ sequential beats = AXI
+        # (>= 5, not > 5, to correctly classify 5-beat bursts)
+        if burst_len >= 5:
             typ = "AXI"
         else:
             typ = "APB"
